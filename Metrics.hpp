@@ -28,7 +28,7 @@ using namespace cv;
 class Metrics{
 public:
    Metrics(int frameWidth, int degree);
-   void drawBoundingBox(Mat *img);
+   Mat calculate(Mat *img);
    void calibrateZero(Mat *img, float dist);
    void configValues(Mat *img, float dist);
    int angle();

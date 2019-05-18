@@ -8,6 +8,22 @@
 
 #include "Metrics.hpp"
 
+struct x_target {
+   int start =0;
+   int end =0;
+};
+
+struct y_target {
+   int start =0;
+   int end =0;
+};
+
+struct target {
+   y_target y;
+   x_target x;
+};
+
+//constructor
 Metrics::Metrics(int frameWidth, int degree){
    this->frameW = frameWidth;
    this->FOV = degree;
@@ -15,57 +31,93 @@ Metrics::Metrics(int frameWidth, int degree){
    vector<float>distY = {0};
 }
 
-void Metrics:: drawBoundingBox(Mat *image){
-   RNG rng(12345);
-   this->radius1 =0;
-   this->radius2 =0;
-   float midpoint =0;
-   float center1 =0, center2=0;
+Mat Metrics:: calculate(Mat *img){
 
-   vector<vector<Point> > contours;
-   vector<Vec4i> hierarchy;
+   int haswhite = 0;
+   int prevhaswhite = 0;
+   vector<x_target> xt;
+   vector<y_target> yt;
+   struct x_target x;
+   struct y_target y;
+   vector<target> targets;
+   target vision_target;
 
-   /// Find contours
-   findContours(*image, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
 
-   // Approximate contours to polygons + get bounding rects and circles
-   vector<vector<Point> > contours_poly( contours.size() );
-   vector<Rect> boundRect( contours.size() );
-   vector<Point2f>center( contours.size() );
-   vector<float>radius( contours.size() );
+   //vertical
+   for(int i =0; i < img->cols; i++){
 
-   for( int i = 0; i < contours.size(); i++ )
-   { approxPolyDP( Mat(contours[i]), contours_poly[i], 3, true );
-      boundRect[i] = boundingRect( Mat(contours_poly[i]) );
-      minEnclosingCircle( (Mat)contours_poly[i], center[i], radius[i] );
-   }
+      haswhite =0;
+      for(int j =0; j< img->rows; j++){ //each column
 
-   /// Draw polygonal contour + bonding rects + circles
-   Mat drawing = Mat::zeros(image->size(), CV_8UC3 ); //
-   for( int i = 0; i< contours.size(); i++ )
-   {
-      if (radius[i]> radius1)             //gets 2 largest radii
-      {
-         this->radius2 = radius1;
-         this->radius1 = radius[i];
-         center2 = center1;
-         center1 = center[i].x;
-      }
-      else if (radius[i] > radius2){
-         this->radius2 = radius[i];
-         center2 = center[i].x;
+         if(img->data[j* img->cols *img->channels() + i*img->channels()] == 255){
+            haswhite++;
+         }
       }
 
+      if((haswhite>=15) && !prevhaswhite){   //if current is white but prev is black
+         line(*img, Point(i, 0), Point(i,480), Scalar(250,250,250),1, LINE_8, 0); //draw line
+         prevhaswhite =1;
+         x.start = i;
+      }
+      else if ((haswhite<=15) && prevhaswhite){
+         line(*img, Point(i, 0), Point(i,480), Scalar(250,250,250),1, LINE_8, 0); //draw line
+         prevhaswhite =0;
+
+         x.end = i;
+         xt.push_back(x);
+
+      }
    }
 
-   midpoint = (center1+center2)/2;           //midpoint of 2 targets
-   this->angl = this->FOV * (abs((this->frameW/2) - midpoint))/this->frameW; //angle = field of view * x offset of the midpoint of targets, divided by the total frame pixel width
+   prevhaswhite = 0;
 
+   //horizontal
+   for(int j =0; j< img->rows; j++){
+      haswhite =0;
+
+      for(int i =0; i < img->cols; i++){
+
+         if(img->data[j* img->cols *img->channels() + i*img->channels()] == 255){  //if at least one is white
+            haswhite++;
+         }
+      }
+
+      if((haswhite>=5) && !prevhaswhite){   //if current is white but prev is black
+         line(*img, Point(0, j), Point(640,j), Scalar(250,250,250),1, LINE_8, 0); //draw line
+         prevhaswhite =1;
+
+         y.start = j;
+
+      }
+      else if ((haswhite<=5) && prevhaswhite){
+         line(*img, Point(0, j), Point(640,j), Scalar(250,250,250),1, LINE_8, 0); //draw line
+         prevhaswhite =0;
+
+         y.end = j;
+         yt.push_back(y);
+         yt.push_back(y);
+      }
+   }
+
+   for(int i = 0; i<xt.size(); i++){
+      cout<<i+1 <<" x target: "<<xt[i].end<<" "<<xt[i].start<<endl;
+      cout<<i+1 <<" y target: "<<yt[i].end<<" "<<yt[i].start<<endl; //only 1
+
+      vision_target.x = xt[i];
+      vision_target.y = yt[i];
+
+      cout<<i+1 <<" x Vtarget: "<<vision_target.x.end<<" "<<vision_target.x.start<<endl;
+      cout<<i+1 <<" y Vtarget: "<<vision_target.y.end<<" "<<vision_target.y.start<<endl; //only 1
+
+   }
+
+
+   return *img;
 }
 
 void Metrics:: calibrateZero(Mat *img, float dist){
    cout<<"METRICS: Calibrating to Zero; dist: "<<dist<<endl;
-   drawBoundingBox(img);
+   //  drawBoundingBox(img);
    this->radiusX.push_back(radius1);
    this->radiusX.push_back(radius2);
    this->distY.push_back(0);
@@ -76,7 +128,7 @@ void Metrics:: calibrateZero(Mat *img, float dist){
 
 void Metrics::configValues(Mat *img, float dist){
    cout<<"METRICS: Config; dist: "<<dist<<endl;
-   drawBoundingBox(img);
+   //   drawBoundingBox(img);
    this->radiusX.push_back(radius1);
    this->radiusX.push_back(radius2);
    this->distY.push_back(dist);

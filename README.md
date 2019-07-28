@@ -23,6 +23,10 @@ Uses line of regression to create a formula that converts the target pair length
 - ```bool readMetrics(string filename)```
 Reads config data from a file into the target_pair_length and distance vectors used for creating the line of regression. The first line of the file is the number of data.
 
+- ```string getAngleAndDistance()```
+Returns the angle and distance in a string formatted like "angle distance"
+
+
 
 
 

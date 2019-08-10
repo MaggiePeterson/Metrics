@@ -77,6 +77,8 @@ private:
    const int FRAME_WIDTH = 640;
    const double FIELD_OF_VIEW  = 68.5;
    const double DEG_PER_PIXEL = FIELD_OF_VIEW/FRAME_WIDTH;
+   bool m_noTarget;
+
 
 };
 
